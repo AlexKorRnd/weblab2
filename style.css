@@ -3,10 +3,22 @@
     margin: 0;
 }
 
-canvas {
+#canvas {
     background: #eee;
-    width: 480px;
-    height: 480px;
     display: block;
     margin: 0 auto;
+}
+
+#step_info {
+    display: block;
+    margin: 25px 0 25px 0;
+    text-align: center;
+}
+
+#chess_info_container
+{
+    display: block;
+    margin: 25px 0 25px 0;
+    text-align: center;
+    color: red;
 }

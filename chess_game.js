@@ -2,12 +2,16 @@ const COUNT_CELL_IN_ROW = 8;
 const COLOR_BLACK_CELL = "#DB8700";
 const COLOR_WHITE_CELL = "#FCD89D";
 
-var canvas = document.createElement("canvas");
+const FIELD_SIZE = 480;
+const CEIL_SIZE = FIELD_SIZE / COUNT_CELL_IN_ROW;
+
+var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 canvas.width = 480;
 canvas.height = 480;
-document.body.appendChild(canvas);
+//document.body.appendChild(canvas);
 
+var step = 0;
 
 var Color = {
     WHITE: 0,
@@ -20,6 +24,7 @@ var colorBlack = Color.BLACK;
 var Ceil = function Cell(figure, color) {
     this.figure = figure;
     this.color = color;
+    this.isPosibleStep = false
 };
 
 var Board = function () {
@@ -52,11 +57,6 @@ function initFigures() {
         this.figureColor = figureColor;
     };
 
-    AbstractFigure.prototype.isStepPossible = function (oldLineNumber, oldColumnNumber,
-                                                        _lineNumber, _columnNumber) {
-        return true;
-    };
-
     Rook = function Rook(figureColor) {
         if (figureColor == Color.BLACK) {
             AbstractFigure.call(this, "\u265C", figureColor)
@@ -65,11 +65,47 @@ function initFigures() {
         }
     };
 
+    function isKillPossible(board, figureColor, line, column) {
+        var figureInCell = board.ceils[line][column].figure;
+        return figureInCell != null && figureInCell.figureColor != figureColor;
+    }
+
     Rook.prototype = Object.create(AbstractFigure.prototype);
 
-    Rook.prototype.isStepPossible = function (oldLineNumber, oldColumnNumber,
-                                              _lineNumber, _columnNumber) {
-        return oldLineNumber == _lineNumber || oldColumnNumber == _columnNumber;
+    Rook.prototype.generatePossibleMoves = function (board, oldLineNumber, oldColumnNumber, figureColor) {
+        var _figureColor = figureColor == null ? this.figureColor : figureColor;
+        for (var curLine = oldLineNumber + 1; curLine < COUNT_CELL_IN_ROW; curLine++) {
+            if (board.ceils[curLine][oldColumnNumber].figure == null) {
+                board.ceils[curLine][oldColumnNumber].isPosibleStep = true;
+            } else {
+                board.ceils[curLine][oldColumnNumber].isPosibleStep = isKillPossible(board, _figureColor, curLine, oldColumnNumber);
+                break;
+            }
+        }
+        for (curLine = oldLineNumber - 1; curLine >= 0; curLine--) {
+            if (board.ceils[curLine][oldColumnNumber].figure == null) {
+                board.ceils[curLine][oldColumnNumber].isPosibleStep = true;
+            } else {
+                board.ceils[curLine][oldColumnNumber].isPosibleStep = isKillPossible(board, _figureColor, curLine, oldColumnNumber);
+                break;
+            }
+        }
+        for (var curColumn = oldColumnNumber + 1; curColumn < COUNT_CELL_IN_ROW; curColumn++) {
+            if (board.ceils[oldLineNumber][curColumn].figure == null) {
+                board.ceils[oldLineNumber][curColumn].isPosibleStep = true;
+            } else {
+                board.ceils[oldLineNumber][curColumn].isPosibleStep = isKillPossible(board, _figureColor, oldLineNumber, curColumn);
+                break;
+            }
+        }
+        for (curColumn = oldColumnNumber - 1; curColumn >= 0; curColumn--) {
+            if (board.ceils[oldLineNumber][curColumn].figure == null) {
+                board.ceils[oldLineNumber][curColumn].isPosibleStep = true;
+            } else {
+                board.ceils[oldLineNumber][curColumn].isPosibleStep = isKillPossible(board, _figureColor, oldLineNumber, curColumn);
+                break;
+            }
+        }
     };
 
     Knight = function Knight(figureColor) {
@@ -82,12 +118,51 @@ function initFigures() {
 
     Knight.prototype = Object.create(AbstractFigure.prototype);
 
-    Knight.prototype.isStepPossible = function (oldLineNumber, oldColumnNumber,
-                                                _lineNumber, _columnNumber) {
-        return ((Math.abs(oldLineNumber - _lineNumber) == 2)
-                && (Math.abs(oldColumnNumber - _columnNumber) == 1)
-            ) || ((Math.abs(oldLineNumber - _lineNumber) == 1)
-            && (Math.abs(oldColumnNumber - _columnNumber) == 2));
+    Knight.prototype.checkPossibleStep = function (board, oldLineNumber, oldColumnNumber) {
+        return isKillPossible(board, this.figureColor, oldLineNumber, oldColumnNumber) || (board.ceils[oldLineNumber][oldColumnNumber].figure == null);
+    };
+
+    Knight.prototype.generatePossibleMoves = function (board, oldLineNumber, oldColumnNumber) {
+        if (oldLineNumber >= 2) {
+            if (oldColumnNumber >= 1) {
+                board.ceils[oldLineNumber - 2][oldColumnNumber - 1].isPosibleStep =
+                    this.checkPossibleStep(board, oldLineNumber - 2, oldColumnNumber - 1)
+            }
+            if (oldColumnNumber < COUNT_CELL_IN_ROW - 1) {
+                board.ceils[oldLineNumber - 2][oldColumnNumber + 1].isPosibleStep =
+                    this.checkPossibleStep(board, oldLineNumber - 2, oldColumnNumber + 1)
+            }
+        }
+        if (oldLineNumber < COUNT_CELL_IN_ROW - 2) {
+            if (oldColumnNumber >= 1) {
+                board.ceils[oldLineNumber + 2][oldColumnNumber - 1].isPosibleStep =
+                    this.checkPossibleStep(board, oldLineNumber + 2, oldColumnNumber - 1)
+            }
+            if (oldColumnNumber < COUNT_CELL_IN_ROW - 1) {
+                board.ceils[oldLineNumber + 2][oldColumnNumber + 1].isPosibleStep =
+                    this.checkPossibleStep(board, oldLineNumber + 2, oldColumnNumber + 1)
+            }
+        }
+        if (oldColumnNumber >= 2) {
+            if (oldLineNumber >= 1) {
+                board.ceils[oldLineNumber - 1][oldColumnNumber - 2].isPosibleStep =
+                    this.checkPossibleStep(board, oldLineNumber - 1, oldColumnNumber - 2)
+            }
+            if (oldLineNumber < COUNT_CELL_IN_ROW - 1) {
+                board.ceils[oldLineNumber + 1][oldColumnNumber - 2].isPosibleStep =
+                    this.checkPossibleStep(board, oldLineNumber + 1, oldColumnNumber - 2)
+            }
+        }
+        if (oldColumnNumber < COUNT_CELL_IN_ROW - 2) {
+            if (oldLineNumber >= 1) {
+                board.ceils[oldLineNumber - 1][oldColumnNumber + 2].isPosibleStep =
+                    this.checkPossibleStep(board, oldLineNumber - 1, oldColumnNumber + 2)
+            }
+            if (oldLineNumber < COUNT_CELL_IN_ROW - 1) {
+                board.ceils[oldLineNumber + 1][oldColumnNumber + 2].isPosibleStep =
+                    this.checkPossibleStep(board, oldLineNumber + 1, oldColumnNumber + 2)
+            }
+        }
     };
 
     Bishop = function Bishop(figureColor) {
@@ -100,12 +175,44 @@ function initFigures() {
 
     Bishop.prototype = Object.create(AbstractFigure.prototype);
 
-    Bishop.prototype.isStepPossible = function (oldLineNumber, oldColumnNumber,
-                                                _lineNumber, _columnNumber) {
-        return ((Math.abs(oldLineNumber - _lineNumber) > 0)
-            && (Math.abs(oldColumnNumber - _columnNumber) == 0))
-            || ((Math.abs(oldLineNumber - _lineNumber) == 0)
-            && (Math.abs(oldColumnNumber - _columnNumber) > 0))
+    Bishop.prototype.generatePossibleMoves = function (board, oldLineNumber, oldColumnNumber, figureColor) {
+        var _figureColor = figureColor == null ? this.figureColor : figureColor;
+        for (var i = oldLineNumber + 1, j = oldColumnNumber + 1;
+             (i < COUNT_CELL_IN_ROW) && (j < COUNT_CELL_IN_ROW); i++, j++) {
+            if (board.ceils[i][j].figure == null) {
+                board.ceils[i][j].isPosibleStep = true;
+            } else {
+                board.ceils[i][j].isPosibleStep = isKillPossible(board, _figureColor, i, j);
+                break;
+            }
+        }
+        for (i = oldLineNumber - 1, j = oldColumnNumber - 1;
+             (i >= 0) && (j >= 0); i--, j--) {
+            if (board.ceils[i][j].figure == null) {
+                board.ceils[i][j].isPosibleStep = true;
+            } else {
+                board.ceils[i][j].isPosibleStep = isKillPossible(board, _figureColor, i, j);
+                break;
+            }
+        }
+        for (i = oldLineNumber - 1, j = oldColumnNumber + 1;
+             (i >= 0) && (j < COUNT_CELL_IN_ROW); i--, j++) {
+            if (board.ceils[i][j].figure == null) {
+                board.ceils[i][j].isPosibleStep = true;
+            } else {
+                board.ceils[i][j].isPosibleStep = isKillPossible(board, _figureColor, i, j);
+                break;
+            }
+        }
+        for (i = oldLineNumber + 1, j = oldColumnNumber - 1;
+             (i < COUNT_CELL_IN_ROW) && (j >= 0); i++, j--) {
+            if (board.ceils[i][j].figure == null) {
+                board.ceils[i][j].isPosibleStep = true;
+            } else {
+                board.ceils[i][j].isPosibleStep = isKillPossible(board, _figureColor, i, j);
+                break;
+            }
+        }
     };
 
     King = function King(figureColor) {
@@ -118,10 +225,9 @@ function initFigures() {
 
     King.prototype = Object.create(AbstractFigure.prototype);
 
-    King.prototype.isStepPossible = function (oldLineNumber, oldColumnNumber,
-                                              _lineNumber, _columnNumber) {
-        return Rook.isStepPossible(_lineNumber, _columnNumber)
-            || Bishop.isStepPossible(_lineNumber, _columnNumber)
+    King.prototype.generatePossibleMoves = function (board, oldLineNumber, oldColumnNumber) {
+        Rook.prototype.generatePossibleMoves(board, oldLineNumber, oldColumnNumber, this.figureColor);
+        Bishop.prototype.generatePossibleMoves(board, oldLineNumber, oldColumnNumber, this.figureColor)
     };
 
     Queen = function Queen(figureColor) {
@@ -134,12 +240,15 @@ function initFigures() {
 
     Queen.prototype = Object.create(AbstractFigure.prototype);
 
-    Queen.prototype.isStepPossible = function (oldLineNumber, oldColumnNumber,
-                                               _lineNumber, _columnNumber) {
-        return ((Math.abs(oldLineNumber - _lineNumber) == 1)
-            && (Math.abs(oldColumnNumber - _columnNumber) == 0))
-            || ((Math.abs(oldLineNumber - _lineNumber) == 0)
-            && (Math.abs(oldColumnNumber - _columnNumber) == 1))
+    Queen.prototype.generatePossibleMoves = function (board, oldLineNumber, oldColumnNumber) {
+        var startLine = oldLineNumber - 1;
+        if (startLine < 0) startLine = 0;
+        var startColumn = oldColumnNumber - 1;
+        if (startColumn < 0) startColumn = 0;
+        for (var i = startLine; (i <= oldLineNumber + 1) && (i < COUNT_CELL_IN_ROW); i++)
+            for (var j = startColumn; (j <= oldColumnNumber + 1) && (j < COUNT_CELL_IN_ROW); j++) {
+                board.ceils[i][j].isPosibleStep = board.ceils[i][j].figure == null || isKillPossible(board, this.figureColor, i, j);
+            }
     };
 
     Pawn = function Pawn(figureColor) {
@@ -152,21 +261,41 @@ function initFigures() {
 
     Pawn.prototype = Object.create(AbstractFigure.prototype);
 
-    Pawn.prototype.isStepPossible = function (board, oldLineNumber, oldColumnNumber,
-                                              _lineNumber, _columnNumber) {
-        var dif = 1;
-        if ((this.figureColor == Color.BLACK && oldLineNumber == COUNT_CELL_IN_ROW - 1)
-            || (this.figureColor == Color.WHITE && oldLineNumber == 2)) {
-            dif = 2;
-        }
-        if ((board.ceils[_lineNumber][_columnNumber].figure.figureColor != this.figureColor)
-            && ((Math.abs(oldLineNumber - _lineNumber) == 0)
-            && (Math.abs(oldColumnNumber - _columnNumber) == 1))) {
-            return true
+    Pawn.prototype.generatePossibleMoves = function (board, oldLineNumber, oldColumnNumber) {
+        if (this.figureColor == Color.BLACK) {
+            if (oldLineNumber == 1) {
+                board.ceils[oldLineNumber + 2][oldColumnNumber].isPosibleStep =
+                    board.ceils[oldLineNumber + 2][oldColumnNumber].figure == null;
+            }
+            if (oldLineNumber < COUNT_CELL_IN_ROW - 1) {
+                board.ceils[oldLineNumber + 1][oldColumnNumber].isPosibleStep =
+                    board.ceils[oldLineNumber + 1][oldColumnNumber].figure == null;
+                if (oldColumnNumber < COUNT_CELL_IN_ROW - 1) {
+                    board.ceils[oldLineNumber + 1][oldColumnNumber + 1].isPosibleStep =
+                        isKillPossible(board, this.figureColor, oldLineNumber + 1, oldColumnNumber + 1)
+                }
+                if (oldColumnNumber > 0) {
+                    board.ceils[oldLineNumber + 1][oldColumnNumber - 1].isPosibleStep =
+                        isKillPossible(board, this.figureColor, oldLineNumber + 1, oldColumnNumber - 1)
+                }
+            }
         } else {
-            return ((Math.abs(oldLineNumber - _lineNumber) == dif)
-                && (Math.abs(oldColumnNumber - _columnNumber) == 0))
-                || (board.ceils)
+            if (oldLineNumber == COUNT_CELL_IN_ROW - 2) {
+                board.ceils[COUNT_CELL_IN_ROW - 4][oldColumnNumber].isPosibleStep =
+                    board.ceils[oldLineNumber - 4][oldColumnNumber].figure == null;
+            }
+            if (oldLineNumber > 0) {
+                board.ceils[oldLineNumber - 1][oldColumnNumber].isPosibleStep =
+                    board.ceils[oldLineNumber - 1][oldColumnNumber].figure == null;
+                if (oldColumnNumber <= COUNT_CELL_IN_ROW - 2) {
+                    board.ceils[oldLineNumber - 1][oldColumnNumber + 1].isPosibleStep =
+                        isKillPossible(board, this.figureColor, oldLineNumber - 1, oldColumnNumber + 1)
+                }
+                if (oldColumnNumber > 0) {
+                    board.ceils[oldLineNumber - 1][oldColumnNumber - 1].isPosibleStep =
+                        isKillPossible(board, this.figureColor, oldLineNumber - 1, oldColumnNumber - 1)
+                }
+            }
         }
     };
 }
@@ -197,36 +326,196 @@ function initFiguresOnBoard() {
     }
 }
 
-function drawFiguresOnBoard() {
-    var cellWidth = canvas.width / COUNT_CELL_IN_ROW;
-    var cellHeight = canvas.height / COUNT_CELL_IN_ROW;
+function updateGameWindow() {
+    resetPossibleMoves(board);
+    clearCircles(board);
+    drawFiguresOnBoard();
+    if (checkmate()) {
+        document.getElementById('chess_info_container').textContent = "Шах и мат!"
+    } else {
+        step++;
+        drawStepInformation();
+    }
+}
 
+function checkmate() {
+    var oppositeQueenLine;
+    var oppositeQueenColumn;
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++)
+        for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
+            var figure = board.ceils[i][j].figure;
+            if (figure != null) {
+                if (figure instanceof Queen) {
+                    oppositeQueenLine = i;
+                    oppositeQueenColumn = j;
+                }
+                if (figure.figureColor == getColorFigureMovesInThisStep()) {
+                    figure.generatePossibleMoves(board, i, j)
+                }
+            }
+        }
+
+    var isChess = board.ceils[oppositeQueenLine][oppositeQueenColumn].isPosibleStep;
+    document.getElementById('chess_info_container').style.display = isChess ? 'block' : 'none';
+    var isChessMate = false;
+    if (isChess) {
+        var copyBoard = board.copy();
+        resetPossibleMoves(copyBoard);
+        var oppositeQueen = board.ceils[oppositeQueenLine][oppositeQueenColumn].figure;
+        oppositeQueen.generatePossibleMoves(copyBoard, oppositeQueenLine, oppositeQueenColumn);
+
+        var hasSteps = false;
+        for (i = 0; i < COUNT_CELL_IN_ROW; i++)
+            for (j = 0; j < COUNT_CELL_IN_ROW; j++) {
+                if (copyBoard.ceils[i][j].isPosibleStep && !board.ceils[i][j].isPosibleStep) {
+                    hasSteps = true;
+                }
+            }
+
+        isChessMate = !hasSteps;
+
+    }
+
+    resetPossibleMoves(board);
+    return isChessMate;
+}
+
+function drawFiguresOnBoard() {
     ctx.font = "bold 48px Arial";
-    for (var i = COUNT_CELL_IN_ROW - 1; i >= 0; i--) {
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
         for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
             if (board.ceils[i][j].color == Color.BLACK) {
                 ctx.fillStyle = COLOR_BLACK_CELL
             } else {
                 ctx.fillStyle = COLOR_WHITE_CELL
             }
-            var x = j * cellWidth;
-            var y = (COUNT_CELL_IN_ROW - 1 - i) * cellHeight;
-            ctx.fillRect(x, y, cellWidth, cellHeight);
+            var x = j * CEIL_SIZE;
+            var y = i * CEIL_SIZE;
+            ctx.fillRect(x, y, CEIL_SIZE, CEIL_SIZE);
             var curFigure = board.ceils[i][j].figure;
             if (curFigure != null) {
-                ctx.strokeText(curFigure.symbol, x + cellWidth / 7, y + cellHeight * 6 / 7);
+                if (curFigure.figureColor == Color.BLACK) {
+                    ctx.fillStyle = "#000";
+                } else {
+                    ctx.fillStyle = "#fff";
+                }
+                ctx.fillText(curFigure.symbol, x + CEIL_SIZE / 7, y + CEIL_SIZE * 6 / 7);
             }
         }
 
-        ctx.rect(0, 0, canvas.width, canvas.height);
+        ctx.rect(0, 0, FIELD_SIZE, FIELD_SIZE);
         ctx.lineWidth = 2;
         ctx.strokeStyle = "black";
         ctx.stroke();
     }
 }
 
+function getColorFigureMovesInThisStep() {
+    return step % 2 == 1 ? Color.WHITE : Color.BLACK;
+}
 
+function drawStepInformation() {
+    var text = getColorFigureMovesInThisStep() == Color.WHITE ? "Ходят белые" : "Ходят черные";
+    document.getElementById('step_info').textContent = text;
+}
+
+function findLineByCoordY(y) {
+    return Math.floor(y / CEIL_SIZE);
+}
+
+function findColumnByCoordX(x) {
+    return Math.floor(x / CEIL_SIZE);
+}
+
+var clickedFigure = null;
+var oldLine;
+var oldColumn;
+
+function onClickListener(event) {
+    var coords = relMouseCoords(event, canvas);
+    var canvasX = coords.x;
+    var canvasY = coords.y;
+    console.log("x = " + canvasX + " y = " + canvasY);
+    if ((canvasX > 0) && (canvasX < FIELD_SIZE) && (canvasY > 0) && (canvasY < FIELD_SIZE)) {
+        if (clickedFigure == null) {
+            oldLine = findLineByCoordY(canvasY);
+            oldColumn = findColumnByCoordX(canvasX);
+            var figure = board.ceils[oldLine][oldColumn].figure;
+            if (figure.figureColor == getColorFigureMovesInThisStep()) {
+                clickedFigure = figure;
+                /*alert("canvasX = " + canvasX + "  canvasY = " + canvasY
+                 + "  oldLine = " + oldLine + "  oldColumn = " + oldColumn
+                 + "  clickedFigure = " + clickedFigure.symbol);*/
+                console.log(clickedFigure);
+                clickedFigure.generatePossibleMoves(board, oldLine, oldColumn);
+                drawPossibleSteps()
+            }
+        } else {
+            var newLine = findLineByCoordY(canvasY);
+            var newColumn = findColumnByCoordX(canvasX);
+            if (board.ceils[newLine][newColumn].isPosibleStep) {
+                board.ceils[oldLine][oldColumn].figure = null;
+                board.ceils[newLine][newColumn].figure = clickedFigure;
+                clickedFigure = null;
+                updateGameWindow();
+            }
+        }
+    }
+}
+
+function drawPossibleSteps() {
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
+        for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
+            if (board.ceils[i][j].isPosibleStep) {
+                var circleX = j * CEIL_SIZE + CEIL_SIZE / 2;
+                var circleY = i * CEIL_SIZE + CEIL_SIZE / 2;
+                drawCircle(circleX, circleY);
+
+            }
+        }
+    }
+}
+
+
+function drawCircle(x, y, color) {
+    if (color == null) {
+        color = 'green'
+    }
+    var radius = 10;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+    ctx.fillStyle = color;
+    ctx.fill();
+}
+
+function clearCircles(board) {
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++)
+        for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
+            var color = board.ceils[i][j].color == Color.BLACK ? COLOR_BLACK_CELL : COLOR_WHITE_CELL;
+            drawCircle(color)
+        }
+}
+
+function resetPossibleMoves(board) {
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
+        for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
+            board.ceils[i][j].isPosibleStep = false;
+        }
+    }
+}
+
+function relMouseCoords(event, canvas) {
+    var canvasX = event.x;
+    var canvasY = event.y;
+
+    canvasX -= canvas.offsetLeft;
+    canvasY -= canvas.offsetTop;
+    return {x: canvasX, y: canvasY}
+}
+
+document.addEventListener("click", onClickListener);
 
 initFigures();
 initFiguresOnBoard();
-drawFiguresOnBoard();
+updateGameWindow();
+

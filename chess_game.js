@@ -24,7 +24,8 @@ var colorBlack = Color.BLACK;
 var Ceil = function Cell(figure, color) {
     this.figure = figure;
     this.color = color;
-    this.isPosibleStep = false
+    this.isPosibleStep = false;
+    this.isCastlingMove = false;
 };
 
 var Board = function () {
@@ -55,6 +56,7 @@ function initFigures() {
     var AbstractFigure = function (symbol, figureColor) {
         this.symbol = symbol;
         this.figureColor = figureColor;
+        this.hasBeenMoved = false;
     };
 
     Rook = function Rook(figureColor) {
@@ -249,6 +251,26 @@ function initFigures() {
             for (var j = startColumn; (j <= oldColumnNumber + 1) && (j < COUNT_CELL_IN_ROW); j++) {
                 board.ceils[i][j].isPosibleStep = board.ceils[i][j].figure == null || isKillPossible(board, this.figureColor, i, j);
             }
+
+        if (!this.hasBeenMoved) {
+            // короткая рокировка
+            if(board.ceils[oldLineNumber][5].figure == null
+                && board.ceils[oldLineNumber][6].figure == null
+                && board.ceils[oldLineNumber][7].figure instanceof Rook
+                && !board.ceils[oldLineNumber][7].figure.hasBeenMoved) {
+                board.ceils[oldLineNumber][6].isPosibleStep = true;
+                board.ceils[oldLineNumber][6].isCastlingMove = true;
+            }
+            // длинная рокировка
+            if (board.ceils[oldLineNumber][1].figure == null
+                && board.ceils[oldLineNumber][2].figure == null
+                && board.ceils[oldLineNumber][3].figure == null
+                && board.ceils[oldLineNumber][0].figure instanceof Rook
+                && !board.ceils[oldLineNumber][0].figure.hasBeenMoved) {
+                board.ceils[oldLineNumber][1].isPosibleStep = true;
+                board.ceils[oldLineNumber][1].isCastlingMove = true;
+            }
+        }
     };
 
     Pawn = function Pawn(figureColor) {
@@ -443,9 +465,6 @@ function onClickListener(event) {
             var figure = board.ceils[oldLine][oldColumn].figure;
             if (figure.figureColor == getColorFigureMovesInThisStep()) {
                 clickedFigure = figure;
-                /*alert("canvasX = " + canvasX + "  canvasY = " + canvasY
-                 + "  oldLine = " + oldLine + "  oldColumn = " + oldColumn
-                 + "  clickedFigure = " + clickedFigure.symbol);*/
                 console.log(clickedFigure);
                 clickedFigure.generatePossibleMoves(board, oldLine, oldColumn);
                 drawPossibleSteps()
@@ -456,6 +475,23 @@ function onClickListener(event) {
             if (board.ceils[newLine][newColumn].isPosibleStep) {
                 board.ceils[oldLine][oldColumn].figure = null;
                 board.ceils[newLine][newColumn].figure = clickedFigure;
+                clickedFigure.hasBeenMoved = true;
+                // обработка рокировки
+                if (board.ceils[newLine][newColumn].isCastlingMove) {
+                    board.ceils[newLine][newColumn].isCastlingMove = false;
+                    // короткая рокировка
+                    if (newColumn == 6) {
+                        // перемещаем ладью
+                        board.ceils[newLine][5].figure = board.ceils[newLine][7].figure;
+                        board.ceils[newLine][7].figure = null;
+                    }
+                    // длинная рокировка
+                    if (newColumn == 1) {
+                        // перемещаем ладью
+                        board.ceils[newLine][2].figure = board.ceils[newLine][0].figure;
+                        board.ceils[newLine][0].figure = null;
+                    }
+                }
                 clickedFigure = null;
                 updateGameWindow();
             }
@@ -512,6 +548,7 @@ function relMouseCoords(event, canvas) {
     canvasY -= canvas.offsetTop;
     return {x: canvasX, y: canvasY}
 }
+
 
 document.addEventListener("click", onClickListener);
 

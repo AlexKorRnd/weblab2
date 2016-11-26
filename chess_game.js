@@ -297,7 +297,11 @@ function initFigures() {
         }
         console.log("Генерируем ходы противоположных фигур для проверки сохранит ли ход нашим королем шах");
         generateAllFiguresPossibleSteps(tempBoard, otherColor);
-        return tempBoard.ceils[newLineNumber][newColumnNumber].isPosibleStep;
+        var otherQueenIndex = findOppositeQueenIndex(board, this.figureColor);
+        var isOtherQueenNear = Math.abs(newLineNumber - otherQueenIndex.line)
+            + Math.abs(newColumnNumber - otherQueenIndex.column) == 1;
+        console.log("Привел ли наш ход к близости с другим королем? " + isOtherQueenNear);
+        return tempBoard.ceils[newLineNumber][newColumnNumber].isPosibleStep && !isOtherQueenNear;
     };
 
     Queen.prototype.generatePossibleMoves = function (board, oldLineNumber, oldColumnNumber) {
@@ -317,6 +321,12 @@ function initFigures() {
                     }
                 } else {
                     curCeil.isPosibleStep =  this.isKillPossible(board, oldLineNumber, oldColumnNumber, i, j);
+                    if (curCeil.isPosibleStep) {
+                        console.log("Взятие фигуры позволило уйти от шаха");
+                    } else {
+                        console.log("Взятие фигуры НЕ позволило уйти от шаха");
+                    }
+
                 }
             }
 
@@ -609,7 +619,7 @@ function processOnBoardClick(canvasX, canvasY) {
             clickedFigure.generatePossibleMoves(board, oldLine, oldColumn);
 
             if (hasPossibleSteps()) {
-                drawPossibleSteps();
+                drawPossibleSteps(board);
             } else {
                 clickedFigure = null;
             }
@@ -737,7 +747,7 @@ function processingCastling(newLine, newColumn) {
 }
 
 
-function drawPossibleSteps() {
+function drawPossibleSteps(board) {
     for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
         for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
             if (board.ceils[i][j].isPosibleStep) {

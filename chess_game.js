@@ -23,9 +23,9 @@ const WHITE_QUEEN_SYMBOL = "\u2654";
 const BLACK_PAWN_SYMBOL = "\u265F";
 const WHITE_PAWN_SYMBOL = "\u2659";
 
-const PROMOTION_TEXT_POSITION_X = 50;
+const INFO_TEXT_POSITION_X = 50;
 const PROMOTION_FIGURES_POSITION_X = 130;
-const PROMOTION_TEXT_POSITION_Y = FIELD_SIZE + 20;
+const INFO_TEXT_POSITION_Y = FIELD_SIZE + 20;
 const PROMOTION_FIGURES_POSITION_Y = FIELD_SIZE + 80;
 
 var canvas = document.getElementById("canvas");
@@ -94,7 +94,7 @@ function initFigures() {
         }
     };
 
-    function isKillPossible(board, figureColor, line, column) {
+    function isSimpleKillPossible(board, figureColor, line, column) {
         var figureInCell = board.ceils[line][column].figure;
         return figureInCell != null && figureInCell.figureColor != figureColor;
     }
@@ -107,7 +107,7 @@ function initFigures() {
             if (board.ceils[curLine][oldColumnNumber].figure == null) {
                 board.ceils[curLine][oldColumnNumber].isPosibleStep = true;
             } else {
-                board.ceils[curLine][oldColumnNumber].isPosibleStep = isKillPossible(board, _figureColor, curLine, oldColumnNumber);
+                board.ceils[curLine][oldColumnNumber].isPosibleStep = isSimpleKillPossible(board, _figureColor, curLine, oldColumnNumber);
                 break;
             }
         }
@@ -115,7 +115,7 @@ function initFigures() {
             if (board.ceils[curLine][oldColumnNumber].figure == null) {
                 board.ceils[curLine][oldColumnNumber].isPosibleStep = true;
             } else {
-                board.ceils[curLine][oldColumnNumber].isPosibleStep = isKillPossible(board, _figureColor, curLine, oldColumnNumber);
+                board.ceils[curLine][oldColumnNumber].isPosibleStep = isSimpleKillPossible(board, _figureColor, curLine, oldColumnNumber);
                 break;
             }
         }
@@ -123,7 +123,7 @@ function initFigures() {
             if (board.ceils[oldLineNumber][curColumn].figure == null) {
                 board.ceils[oldLineNumber][curColumn].isPosibleStep = true;
             } else {
-                board.ceils[oldLineNumber][curColumn].isPosibleStep = isKillPossible(board, _figureColor, oldLineNumber, curColumn);
+                board.ceils[oldLineNumber][curColumn].isPosibleStep = isSimpleKillPossible(board, _figureColor, oldLineNumber, curColumn);
                 break;
             }
         }
@@ -131,7 +131,7 @@ function initFigures() {
             if (board.ceils[oldLineNumber][curColumn].figure == null) {
                 board.ceils[oldLineNumber][curColumn].isPosibleStep = true;
             } else {
-                board.ceils[oldLineNumber][curColumn].isPosibleStep = isKillPossible(board, _figureColor, oldLineNumber, curColumn);
+                board.ceils[oldLineNumber][curColumn].isPosibleStep = isSimpleKillPossible(board, _figureColor, oldLineNumber, curColumn);
                 break;
             }
         }
@@ -148,7 +148,8 @@ function initFigures() {
     Knight.prototype = Object.create(AbstractFigure.prototype);
 
     Knight.prototype.checkPossibleStep = function (board, oldLineNumber, oldColumnNumber) {
-        return isKillPossible(board, this.figureColor, oldLineNumber, oldColumnNumber) || (board.ceils[oldLineNumber][oldColumnNumber].figure == null);
+        return isSimpleKillPossible(board, this.figureColor, oldLineNumber, oldColumnNumber)
+            || (board.ceils[oldLineNumber][oldColumnNumber].figure == null);
     };
 
     Knight.prototype.generatePossibleMoves = function (board, oldLineNumber, oldColumnNumber) {
@@ -211,7 +212,7 @@ function initFigures() {
             if (board.ceils[i][j].figure == null) {
                 board.ceils[i][j].isPosibleStep = true;
             } else {
-                board.ceils[i][j].isPosibleStep = isKillPossible(board, _figureColor, i, j);
+                board.ceils[i][j].isPosibleStep = isSimpleKillPossible(board, _figureColor, i, j);
                 break;
             }
         }
@@ -220,7 +221,7 @@ function initFigures() {
             if (board.ceils[i][j].figure == null) {
                 board.ceils[i][j].isPosibleStep = true;
             } else {
-                board.ceils[i][j].isPosibleStep = isKillPossible(board, _figureColor, i, j);
+                board.ceils[i][j].isPosibleStep = isSimpleKillPossible(board, _figureColor, i, j);
                 break;
             }
         }
@@ -229,7 +230,7 @@ function initFigures() {
             if (board.ceils[i][j].figure == null) {
                 board.ceils[i][j].isPosibleStep = true;
             } else {
-                board.ceils[i][j].isPosibleStep = isKillPossible(board, _figureColor, i, j);
+                board.ceils[i][j].isPosibleStep = isSimpleKillPossible(board, _figureColor, i, j);
                 break;
             }
         }
@@ -238,7 +239,7 @@ function initFigures() {
             if (board.ceils[i][j].figure == null) {
                 board.ceils[i][j].isPosibleStep = true;
             } else {
-                board.ceils[i][j].isPosibleStep = isKillPossible(board, _figureColor, i, j);
+                board.ceils[i][j].isPosibleStep = isSimpleKillPossible(board, _figureColor, i, j);
                 break;
             }
         }
@@ -269,6 +270,36 @@ function initFigures() {
 
     Queen.prototype = Object.create(AbstractFigure.prototype);
 
+    Queen.prototype.isKillPossible = function (board, oldLineNumber, oldColumnNumber,
+                                               newLineNumber, newColumnNumber) {
+        // проверяем можем ли взять фигуру забывая о возможном шахе
+        var _isKillPossible = isSimpleKillPossible(board, this.figureColor, newLineNumber, newColumnNumber);
+        if (_isKillPossible) {
+            // а теперь проверяем не приведет ли это взятие к шаху
+            return !this.isChessStep(board, oldLineNumber, oldColumnNumber,
+                newLineNumber, newColumnNumber)
+        }
+        return _isKillPossible;
+    };
+
+    Queen.prototype.isChessStep = function (board, oldLineNumber, oldColumnNumber,
+                                            newLineNumber, newColumnNumber) {
+        var tempBoard = getCopyBoardWithFigures(board);
+        makeStep(tempBoard, this, oldLineNumber, oldColumnNumber, newLineNumber, newColumnNumber);
+
+        console.log("пробуем походить " + getColorString(this.figureColor) + " королем на " + newLineNumber + " строку "
+            + newColumnNumber + " столбец");
+        var otherColor;
+        if (this.figureColor == Color.WHITE) {
+            otherColor = Color.BLACK;
+        } else {
+            otherColor = Color.WHITE;
+        }
+        console.log("Генерируем ходы противоположных фигур для проверки сохранит ли ход нашим королем шах");
+        generateAllFiguresPossibleSteps(tempBoard, otherColor);
+        return tempBoard.ceils[newLineNumber][newColumnNumber].isPosibleStep;
+    };
+
     Queen.prototype.generatePossibleMoves = function (board, oldLineNumber, oldColumnNumber) {
         var startLine = oldLineNumber - 1;
         if (startLine < 0) startLine = 0;
@@ -276,7 +307,17 @@ function initFigures() {
         if (startColumn < 0) startColumn = 0;
         for (var i = startLine; (i <= oldLineNumber + 1) && (i < COUNT_CELL_IN_ROW); i++)
             for (var j = startColumn; (j <= oldColumnNumber + 1) && (j < COUNT_CELL_IN_ROW); j++) {
-                board.ceils[i][j].isPosibleStep = board.ceils[i][j].figure == null || isKillPossible(board, this.figureColor, i, j);
+                var curCeil = board.ceils[i][j];
+                if (curCeil.figure == null) {
+                    curCeil.isPosibleStep = !this.isChessStep(board, oldLineNumber, oldColumnNumber, i, j);
+                    if (curCeil.isPosibleStep) {
+                        console.log("Этот ход не привел к шаху");
+                    } else {
+                        console.log("Этот ход привел к шаху");
+                    }
+                } else {
+                    curCeil.isPosibleStep =  this.isKillPossible(board, oldLineNumber, oldColumnNumber, i, j);
+                }
             }
 
         if (!this.hasBeenMoved) {
@@ -321,12 +362,12 @@ function initFigures() {
                     board.ceils[oldLineNumber + 1][oldColumnNumber].figure == null;
                 if (oldColumnNumber < COUNT_CELL_IN_ROW - 1) {
                     board.ceils[oldLineNumber + 1][oldColumnNumber + 1].isPosibleStep =
-                        isKillPossible(board, this.figureColor, oldLineNumber + 1, oldColumnNumber + 1)
+                        isSimpleKillPossible(board, this.figureColor, oldLineNumber + 1, oldColumnNumber + 1)
                         || board.ceils[oldLineNumber + 1][oldColumnNumber + 1].isEnpassantMove;
                 }
                 if (oldColumnNumber > 0) {
                     board.ceils[oldLineNumber + 1][oldColumnNumber - 1].isPosibleStep =
-                        isKillPossible(board, this.figureColor, oldLineNumber + 1, oldColumnNumber - 1)
+                        isSimpleKillPossible(board, this.figureColor, oldLineNumber + 1, oldColumnNumber - 1)
                         || board.ceils[oldLineNumber + 1][oldColumnNumber - 1].isEnpassantMove;
                 }
             }
@@ -340,17 +381,25 @@ function initFigures() {
                     board.ceils[oldLineNumber - 1][oldColumnNumber].figure == null;
                 if (oldColumnNumber <= COUNT_CELL_IN_ROW - 2) {
                     board.ceils[oldLineNumber - 1][oldColumnNumber + 1].isPosibleStep =
-                        isKillPossible(board, this.figureColor, oldLineNumber - 1, oldColumnNumber + 1)
+                        isSimpleKillPossible(board, this.figureColor, oldLineNumber - 1, oldColumnNumber + 1)
                         || board.ceils[oldLineNumber - 1][oldColumnNumber + 1].isEnpassantMove;
                 }
                 if (oldColumnNumber > 0) {
                     board.ceils[oldLineNumber - 1][oldColumnNumber - 1].isPosibleStep =
-                        isKillPossible(board, this.figureColor, oldLineNumber - 1, oldColumnNumber - 1)
+                        isSimpleKillPossible(board, this.figureColor, oldLineNumber - 1, oldColumnNumber - 1)
                         || board.ceils[oldLineNumber - 1][oldColumnNumber - 1].isEnpassantMove;
                 }
             }
         }
     };
+}
+
+function getColorString(color) {
+    if (color == Color.WHITE) {
+        return "white";
+    }  else {
+        return "black";
+    }
 }
 
 function initFiguresOnBoard() {
@@ -383,54 +432,104 @@ function updateGameWindow() {
     resetPossibleMoves(board);
     clearCircles(board);
     drawFiguresOnBoard();
-    if (checkmate()) {
-        document.getElementById('chess_info_container').textContent = "Шах и мат!"
-    } else if (!board.isPromotionMode) {
-        step++;
+    var curStepColor = getColorFigureMovesInThisStep();
+    step++;
+    if ((step > 1) && isChess(board, curStepColor)) {
+        if (isChessMate(board, curStepColor)) {
+            showCheckMateInfo("Шах и мат!");
+            return;
+        } else {
+            showCheckMateInfo("Шах!")
+        }
+    } else {
+        clearBottomInfoContainer();
+    }
+    if (!board.isPromotionMode) {
+
         drawStepInformation();
     }
 }
 
-function checkmate() {
-    var oppositeQueenLine;
-    var oppositeQueenColumn;
+
+var Index = function (line, column) {
+    this.line = line;
+    this.column = column;
+};
+
+
+function findOppositeQueenIndex(board, curStepColor) {
     for (var i = 0; i < COUNT_CELL_IN_ROW; i++)
         for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
             var figure = board.ceils[i][j].figure;
-            if (figure != null) {
-                if (figure instanceof Queen) {
-                    oppositeQueenLine = i;
-                    oppositeQueenColumn = j;
-                }
-                if (figure.figureColor == getColorFigureMovesInThisStep()) {
-                    figure.generatePossibleMoves(board, i, j)
-                }
+            if ((figure != null) && (figure instanceof Queen)
+                && (figure.figureColor != curStepColor)) {
+                return new Index(i, j);
             }
         }
+}
 
-    var isChess = board.ceils[oppositeQueenLine][oppositeQueenColumn].isPosibleStep;
-    document.getElementById('chess_info_container').style.display = isChess ? 'block' : 'none';
-    var isChessMate = false;
-    if (isChess) {
-        var copyBoard = board.copy();
-        resetPossibleMoves(copyBoard);
-        var oppositeQueen = board.ceils[oppositeQueenLine][oppositeQueenColumn].figure;
-        oppositeQueen.generatePossibleMoves(copyBoard, oppositeQueenLine, oppositeQueenColumn);
+// проверяем на шах
+function isChess(board, curStepColor) {
+    var tempBoard = getCopyBoardWithFigures(board);
+    var oppositeQueenIndex = findOppositeQueenIndex(board, curStepColor);
+    console.log("проверяем поставили ли " + getColorString(curStepColor) + " фигуры шах");
+    generateAllFiguresPossibleSteps(tempBoard, curStepColor);
+    var oppositeQueenCeil = tempBoard.ceils[oppositeQueenIndex.line][oppositeQueenIndex.column];
+    return oppositeQueenCeil.isPosibleStep;
+}
 
-        var hasSteps = false;
-        for (i = 0; i < COUNT_CELL_IN_ROW; i++)
-            for (j = 0; j < COUNT_CELL_IN_ROW; j++) {
-                if (copyBoard.ceils[i][j].isPosibleStep && !board.ceils[i][j].isPosibleStep) {
-                    hasSteps = true;
-                }
+
+// перед проверкой на мат нужно вызвать проверку на шах
+function isChessMate(board, curStepColor) {
+    var oppositeQueenIndex = findOppositeQueenIndex(board, curStepColor);
+    return !mayQueenEscapeMateOwnStep(board, oppositeQueenIndex.line, oppositeQueenIndex.column,
+        board.ceils[oppositeQueenIndex.line][oppositeQueenIndex.column].figure);
+}
+
+function showCheckMateInfo(text) {
+    ctx.font = "bold 24px Arial";
+    ctx.fillStyle = "#f00";
+    ctx.fillText(text, INFO_TEXT_POSITION_X + 100, INFO_TEXT_POSITION_Y + 25);
+}
+
+function generateAllFiguresPossibleSteps(board, figureColor) {
+    console.log("генерируем ходы для " + getColorString(figureColor) + " фигур");
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++)
+        for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
+            var figure = board.ceils[i][j].figure;
+            if (figure != null && figure.figureColor == figureColor && !(figure instanceof Queen)) {
+                figure.generatePossibleMoves(board, i, j)
             }
+        }
+}
 
-        isChessMate = !hasSteps;
+// проверяем может ли король уйти от мата своим ходом
+function mayQueenEscapeMateOwnStep(board, oppositeQueenLine, oppositeQueenColumn, queen) {
+    var newBoard = getCopyBoardWithFigures(board);
+    queen.generatePossibleMoves(newBoard, oppositeQueenLine, oppositeQueenColumn);
+    var mayQueenEscapeMateOwnStep = false;
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++)
+        for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
+            if (newBoard.ceils[i][j].isPosibleStep && !board.ceils[i][j].isPosibleStep) {
+                mayQueenEscapeMateOwnStep = true;
+            }
+        }
+    return mayQueenEscapeMateOwnStep;
+}
 
+function makeStep(board, figure, oldLine, oldColumn, newLine, newColumn) {
+    board.ceils[oldLine][oldColumn].figure = null;
+    board.ceils[newLine][newColumn].figure = figure;
+}
+
+function getCopyBoardWithFigures(board) {
+    var copyBoard = new Board();
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
+        for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
+            copyBoard.ceils[i][j].figure = board.ceils[i][j].figure
+        }
     }
-
-    resetPossibleMoves(board);
-    return isChessMate;
+    return copyBoard;
 }
 
 function drawFiguresOnBoard() {
@@ -490,7 +589,6 @@ function onClickListener(event) {
     var coords = relMouseCoords(event, canvas);
     var canvasX = coords.x;
     var canvasY = coords.y;
-    console.log("x = " + canvasX + " y = " + canvasY);
     if ((canvasX > 0) && (canvasX < FIELD_SIZE) && (canvasY > 0)) {
         if (canvasY < FIELD_SIZE && !board.isPromotionMode) {
             processOnBoardClick(canvasX, canvasY);
@@ -508,16 +606,21 @@ function processOnBoardClick(canvasX, canvasY) {
         var figure = board.ceils[oldLine][oldColumn].figure;
         if (figure.figureColor == getColorFigureMovesInThisStep()) {
             clickedFigure = figure;
-            console.log(clickedFigure);
             clickedFigure.generatePossibleMoves(board, oldLine, oldColumn);
-            drawPossibleSteps()
+
+            if (hasPossibleSteps()) {
+                drawPossibleSteps();
+            } else {
+                clickedFigure = null;
+            }
         }
     } else {
         newLine = findLineByCoordY(canvasY);
         newColumn = findColumnByCoordX(canvasX);
         if (board.ceils[newLine][newColumn].isPosibleStep) {
-            board.ceils[oldLine][oldColumn].figure = null;
-            board.ceils[newLine][newColumn].figure = clickedFigure;
+            makeStep(board, clickedFigure, oldLine, oldColumn, newLine, newColumn);
+           /* board.ceils[oldLine][oldColumn].figure = null;
+            board.ceils[newLine][newColumn].figure = clickedFigure;*/
             clickedFigure.hasBeenMoved = true;
 
             if (board.ceils[newLine][newColumn].isCastlingMove) {
@@ -558,14 +661,25 @@ function processOnBoardClick(canvasX, canvasY) {
     }
 }
 
+function hasPossibleSteps() {
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
+        for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
+            if (board.ceils[i][j].isPosibleStep) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 function processOnPromotionFigureClick(canvasX, canvasY) {
     if ((canvasX > PROMOTION_FIGURES_POSITION_X) && (canvasX < PROMOTION_FIGURES_POSITION_X + CEIL_SIZE * 4)
-        && (canvasY > PROMOTION_TEXT_POSITION_Y) && (canvasY < PROMOTION_TEXT_POSITION_Y + CEIL_SIZE)) {
+        && (canvasY > INFO_TEXT_POSITION_Y) && (canvasY < INFO_TEXT_POSITION_Y + CEIL_SIZE)) {
         var number = Math.floor((canvasX - PROMOTION_FIGURES_POSITION_X) / CEIL_SIZE);
         board.ceils[newLine][newColumn].figure = promotionFigures[number];
         promotionFigures = [];
         board.isPromotionMode = false;
-        clearPromotionFigures();
+        clearBottomInfoContainer();
         updateGameWindow();
     }
 
@@ -674,10 +788,9 @@ function relMouseCoords(event, canvas) {
 }
 
 
-
 function drawPromotionFigures(colorFigure) {
-    var x = PROMOTION_TEXT_POSITION_X;
-    var y = PROMOTION_TEXT_POSITION_Y;
+    var x = INFO_TEXT_POSITION_X;
+    var y = INFO_TEXT_POSITION_Y;
 
     ctx.font = "bold 16px Arial";
     ctx.fillStyle = "#000";
@@ -697,18 +810,18 @@ function drawPromotionFigures(colorFigure) {
         } else {
             ctx.fillStyle = COLOR_WHITE_CELL
         }
-        ctx.fillRect(x, PROMOTION_TEXT_POSITION_Y + 10 , CEIL_SIZE, CEIL_SIZE);
+        ctx.fillRect(x, INFO_TEXT_POSITION_Y + 10, CEIL_SIZE, CEIL_SIZE);
         if (colorFigure == Color.BLACK) {
             ctx.fillStyle = "#000";
         } else {
             ctx.fillStyle = "#fff";
         }
-        ctx.fillText(promotionFigures[i].symbol, x+5, y);
+        ctx.fillText(promotionFigures[i].symbol, x + 5, y);
         x += CEIL_SIZE;
     }
 }
 
-function clearPromotionFigures() {
+function clearBottomInfoContainer() {
     ctx.clearRect(0, FIELD_SIZE, FIELD_SIZE, canvas.height - FIELD_SIZE)
 }
 

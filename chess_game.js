@@ -26,6 +26,7 @@ var Ceil = function Cell(figure, color) {
     this.color = color;
     this.isPosibleStep = false;
     this.isCastlingMove = false;
+    this.isEnpassantMove = false;
 };
 
 var Board = function () {
@@ -254,7 +255,7 @@ function initFigures() {
 
         if (!this.hasBeenMoved) {
             // короткая рокировка
-            if(board.ceils[oldLineNumber][5].figure == null
+            if (board.ceils[oldLineNumber][5].figure == null
                 && board.ceils[oldLineNumber][6].figure == null
                 && board.ceils[oldLineNumber][7].figure instanceof Rook
                 && !board.ceils[oldLineNumber][7].figure.hasBeenMoved) {
@@ -295,10 +296,12 @@ function initFigures() {
                 if (oldColumnNumber < COUNT_CELL_IN_ROW - 1) {
                     board.ceils[oldLineNumber + 1][oldColumnNumber + 1].isPosibleStep =
                         isKillPossible(board, this.figureColor, oldLineNumber + 1, oldColumnNumber + 1)
+                        || board.ceils[oldLineNumber + 1][oldColumnNumber + 1].isEnpassantMove;
                 }
                 if (oldColumnNumber > 0) {
                     board.ceils[oldLineNumber + 1][oldColumnNumber - 1].isPosibleStep =
                         isKillPossible(board, this.figureColor, oldLineNumber + 1, oldColumnNumber - 1)
+                        || board.ceils[oldLineNumber + 1][oldColumnNumber - 1].isEnpassantMove;
                 }
             }
         } else {
@@ -312,10 +315,12 @@ function initFigures() {
                 if (oldColumnNumber <= COUNT_CELL_IN_ROW - 2) {
                     board.ceils[oldLineNumber - 1][oldColumnNumber + 1].isPosibleStep =
                         isKillPossible(board, this.figureColor, oldLineNumber - 1, oldColumnNumber + 1)
+                        || board.ceils[oldLineNumber - 1][oldColumnNumber + 1].isEnpassantMove;
                 }
                 if (oldColumnNumber > 0) {
                     board.ceils[oldLineNumber - 1][oldColumnNumber - 1].isPosibleStep =
                         isKillPossible(board, this.figureColor, oldLineNumber - 1, oldColumnNumber - 1)
+                        || board.ceils[oldLineNumber - 1][oldColumnNumber - 1].isEnpassantMove;
                 }
             }
         }
@@ -476,28 +481,85 @@ function onClickListener(event) {
                 board.ceils[oldLine][oldColumn].figure = null;
                 board.ceils[newLine][newColumn].figure = clickedFigure;
                 clickedFigure.hasBeenMoved = true;
-                // обработка рокировки
+
                 if (board.ceils[newLine][newColumn].isCastlingMove) {
-                    board.ceils[newLine][newColumn].isCastlingMove = false;
-                    // короткая рокировка
-                    if (newColumn == 6) {
-                        // перемещаем ладью
-                        board.ceils[newLine][5].figure = board.ceils[newLine][7].figure;
-                        board.ceils[newLine][7].figure = null;
-                    }
-                    // длинная рокировка
-                    if (newColumn == 1) {
-                        // перемещаем ладью
-                        board.ceils[newLine][2].figure = board.ceils[newLine][0].figure;
-                        board.ceils[newLine][0].figure = null;
-                    }
+                    processingCastling(newLine, newColumn)
                 }
+                if (clickedFigure instanceof Pawn && (Math.abs(newLine - oldLine) == 2)) {
+                    checkEnPassant(newLine, newColumn);
+                }
+                if (board.ceils[newLine][newColumn].isEnpassantMove) {
+                    board.ceils[newLine][newColumn].isEnpassantMove = false;
+                    if (clickedFigure.figureColor == Color.WHITE) {
+                        // берем черную пешку
+                        board.ceils[newLine + 1][newColumn].figure = null;
+                    } else {
+                        board.ceils[newLine - 1][newColumn].figure = null;
+                    }
+                } else {
+                    // взятие на проходе упущено
+                    resetEnPassant();
+                }
+
+
                 clickedFigure = null;
                 updateGameWindow();
             }
         }
     }
 }
+
+function checkEnPassant(newLine, newColumn) {
+    var figure;
+    if (newColumn > 0) {
+        figure = board.ceils[newLine][newColumn - 1].figure;
+        if (figure instanceof Pawn && figure.figureColor != clickedFigure.figureColor) {
+            if (clickedFigure.figureColor == Color.BLACK) {
+                board.ceils[newLine - 1][newColumn].isEnpassantMove = true;
+            } else {
+                board.ceils[newLine + 1][newColumn].isEnpassantMove = true;
+            }
+        }
+    }
+    if (newColumn < COUNT_CELL_IN_ROW - 1) {
+        figure = board.ceils[newLine][newColumn + 1].figure;
+        if (figure instanceof Pawn && figure.figureColor != clickedFigure.figureColor) {
+            if (clickedFigure.figureColor == Color.BLACK) {
+                board.ceils[newLine + 1][newColumn].isEnpassantMove = true;
+            } else {
+                board.ceils[newLine + 1][newColumn].isEnpassantMove = true;
+            }
+        }
+    }
+}
+
+
+function resetEnPassant() {
+    board.ceils[2].forEach(function (item, i, arr) {
+        arr[i].isEnpassantMove = false;
+    });
+    board.ceils[5].forEach(function (item, i, arr) {
+        arr[i].isEnpassantMove = false;
+    })
+}
+
+// обработка рокировки
+function processingCastling(newLine, newColumn) {
+    board.ceils[newLine][newColumn].isCastlingMove = false;
+    // короткая рокировка
+    if (newColumn == 6) {
+        // перемещаем ладью
+        board.ceils[newLine][5].figure = board.ceils[newLine][7].figure;
+        board.ceils[newLine][7].figure = null;
+    }
+    // длинная рокировка
+    if (newColumn == 1) {
+        // перемещаем ладью
+        board.ceils[newLine][2].figure = board.ceils[newLine][0].figure;
+        board.ceils[newLine][0].figure = null;
+    }
+}
+
 
 function drawPossibleSteps() {
     for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
@@ -547,6 +609,10 @@ function relMouseCoords(event, canvas) {
     canvasX -= canvas.offsetLeft;
     canvasY -= canvas.offsetTop;
     return {x: canvasX, y: canvasY}
+}
+
+function draw() {
+
 }
 
 

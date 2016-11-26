@@ -5,10 +5,33 @@ const COLOR_WHITE_CELL = "#FCD89D";
 const FIELD_SIZE = 480;
 const CEIL_SIZE = FIELD_SIZE / COUNT_CELL_IN_ROW;
 
+const BLACK_ROOK_SYMBOL = "\u265C";
+const WHITE_ROOK_SYMBOL = "\u2656";
+
+const BLACK_KNIGHT_SYMBOL = "\u265E";
+const WHITE_KNIGHT_SYMBOL = "\u2658";
+
+const BLACK_BISHOP_SYMBOL = "\u265D";
+const WHITE_BISHOP_SYMBOL = "\u2657";
+
+const BLACK_KING_SYMBOL = "\u265B";
+const WHITE_KING_SYMBOL = "\u2655";
+
+const BLACK_QUEEN_SYMBOL = "\u265A";
+const WHITE_QUEEN_SYMBOL = "\u2654";
+
+const BLACK_PAWN_SYMBOL = "\u265F";
+const WHITE_PAWN_SYMBOL = "\u2659";
+
+const PROMOTION_TEXT_POSITION_X = 50;
+const PROMOTION_FIGURES_POSITION_X = 130;
+const PROMOTION_TEXT_POSITION_Y = FIELD_SIZE + 20;
+const PROMOTION_FIGURES_POSITION_Y = FIELD_SIZE + 80;
+
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
-canvas.width = 480;
-canvas.height = 480;
+canvas.width = FIELD_SIZE;
+canvas.height = FIELD_SIZE + 100;
 //document.body.appendChild(canvas);
 
 var step = 0;
@@ -21,6 +44,8 @@ var Color = {
 var colorWhite = Color.WHITE;
 var colorBlack = Color.BLACK;
 
+var promotionFigures = [];
+
 var Ceil = function Cell(figure, color) {
     this.figure = figure;
     this.color = color;
@@ -31,6 +56,7 @@ var Ceil = function Cell(figure, color) {
 
 var Board = function () {
     this.ceils = [];
+    this.isPromotionMode = false;
     for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
         this.ceils[i] = [];
         for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
@@ -62,9 +88,9 @@ function initFigures() {
 
     Rook = function Rook(figureColor) {
         if (figureColor == Color.BLACK) {
-            AbstractFigure.call(this, "\u265C", figureColor)
+            AbstractFigure.call(this, BLACK_ROOK_SYMBOL, figureColor)
         } else {
-            AbstractFigure.call(this, "\u2656", figureColor)
+            AbstractFigure.call(this, WHITE_ROOK_SYMBOL, figureColor)
         }
     };
 
@@ -113,9 +139,9 @@ function initFigures() {
 
     Knight = function Knight(figureColor) {
         if (figureColor == Color.BLACK) {
-            AbstractFigure.call(this, "\u265E", figureColor)
+            AbstractFigure.call(this, BLACK_KNIGHT_SYMBOL, figureColor)
         } else {
-            AbstractFigure.call(this, "\u2658", figureColor)
+            AbstractFigure.call(this, WHITE_KNIGHT_SYMBOL, figureColor)
         }
     };
 
@@ -170,9 +196,9 @@ function initFigures() {
 
     Bishop = function Bishop(figureColor) {
         if (figureColor == Color.BLACK) {
-            AbstractFigure.call(this, "\u265D", figureColor)
+            AbstractFigure.call(this, BLACK_BISHOP_SYMBOL, figureColor)
         } else {
-            AbstractFigure.call(this, "\u2657", figureColor)
+            AbstractFigure.call(this, WHITE_BISHOP_SYMBOL, figureColor)
         }
     };
 
@@ -220,9 +246,9 @@ function initFigures() {
 
     King = function King(figureColor) {
         if (figureColor == Color.BLACK) {
-            AbstractFigure.call(this, "\u265B", figureColor)
+            AbstractFigure.call(this, BLACK_KING_SYMBOL, figureColor)
         } else {
-            AbstractFigure.call(this, "\u2655", figureColor)
+            AbstractFigure.call(this, WHITE_KING_SYMBOL, figureColor)
         }
     };
 
@@ -235,9 +261,9 @@ function initFigures() {
 
     Queen = function Queen(figureColor) {
         if (figureColor == Color.BLACK) {
-            AbstractFigure.call(this, "\u265A", figureColor)
+            AbstractFigure.call(this, BLACK_QUEEN_SYMBOL, figureColor)
         } else {
-            AbstractFigure.call(this, "\u2654", figureColor)
+            AbstractFigure.call(this, WHITE_QUEEN_SYMBOL, figureColor)
         }
     };
 
@@ -276,9 +302,9 @@ function initFigures() {
 
     Pawn = function Pawn(figureColor) {
         if (figureColor == Color.BLACK) {
-            AbstractFigure.call(this, "\u265F", figureColor)
+            AbstractFigure.call(this, BLACK_PAWN_SYMBOL, figureColor)
         } else {
-            AbstractFigure.call(this, "\u2659", figureColor)
+            AbstractFigure.call(this, WHITE_PAWN_SYMBOL, figureColor)
         }
     };
 
@@ -359,7 +385,7 @@ function updateGameWindow() {
     drawFiguresOnBoard();
     if (checkmate()) {
         document.getElementById('chess_info_container').textContent = "Шах и мат!"
-    } else {
+    } else if (!board.isPromotionMode) {
         step++;
         drawStepInformation();
     }
@@ -457,56 +483,92 @@ function findColumnByCoordX(x) {
 var clickedFigure = null;
 var oldLine;
 var oldColumn;
+var newLine;
+var newColumn;
 
 function onClickListener(event) {
     var coords = relMouseCoords(event, canvas);
     var canvasX = coords.x;
     var canvasY = coords.y;
     console.log("x = " + canvasX + " y = " + canvasY);
-    if ((canvasX > 0) && (canvasX < FIELD_SIZE) && (canvasY > 0) && (canvasY < FIELD_SIZE)) {
-        if (clickedFigure == null) {
-            oldLine = findLineByCoordY(canvasY);
-            oldColumn = findColumnByCoordX(canvasX);
-            var figure = board.ceils[oldLine][oldColumn].figure;
-            if (figure.figureColor == getColorFigureMovesInThisStep()) {
-                clickedFigure = figure;
-                console.log(clickedFigure);
-                clickedFigure.generatePossibleMoves(board, oldLine, oldColumn);
-                drawPossibleSteps()
-            }
-        } else {
-            var newLine = findLineByCoordY(canvasY);
-            var newColumn = findColumnByCoordX(canvasX);
-            if (board.ceils[newLine][newColumn].isPosibleStep) {
-                board.ceils[oldLine][oldColumn].figure = null;
-                board.ceils[newLine][newColumn].figure = clickedFigure;
-                clickedFigure.hasBeenMoved = true;
-
-                if (board.ceils[newLine][newColumn].isCastlingMove) {
-                    processingCastling(newLine, newColumn)
-                }
-                if (clickedFigure instanceof Pawn && (Math.abs(newLine - oldLine) == 2)) {
-                    checkEnPassant(newLine, newColumn);
-                }
-                if (board.ceils[newLine][newColumn].isEnpassantMove) {
-                    board.ceils[newLine][newColumn].isEnpassantMove = false;
-                    if (clickedFigure.figureColor == Color.WHITE) {
-                        // берем черную пешку
-                        board.ceils[newLine + 1][newColumn].figure = null;
-                    } else {
-                        board.ceils[newLine - 1][newColumn].figure = null;
-                    }
-                } else {
-                    // взятие на проходе упущено
-                    resetEnPassant();
-                }
-
-
-                clickedFigure = null;
-                updateGameWindow();
-            }
+    if ((canvasX > 0) && (canvasX < FIELD_SIZE) && (canvasY > 0)) {
+        if (canvasY < FIELD_SIZE && !board.isPromotionMode) {
+            processOnBoardClick(canvasX, canvasY);
+        }
+        if (board.isPromotionMode) {
+            processOnPromotionFigureClick(canvasX, canvasY)
         }
     }
+}
+
+function processOnBoardClick(canvasX, canvasY) {
+    if (clickedFigure == null) {
+        oldLine = findLineByCoordY(canvasY);
+        oldColumn = findColumnByCoordX(canvasX);
+        var figure = board.ceils[oldLine][oldColumn].figure;
+        if (figure.figureColor == getColorFigureMovesInThisStep()) {
+            clickedFigure = figure;
+            console.log(clickedFigure);
+            clickedFigure.generatePossibleMoves(board, oldLine, oldColumn);
+            drawPossibleSteps()
+        }
+    } else {
+        newLine = findLineByCoordY(canvasY);
+        newColumn = findColumnByCoordX(canvasX);
+        if (board.ceils[newLine][newColumn].isPosibleStep) {
+            board.ceils[oldLine][oldColumn].figure = null;
+            board.ceils[newLine][newColumn].figure = clickedFigure;
+            clickedFigure.hasBeenMoved = true;
+
+            if (board.ceils[newLine][newColumn].isCastlingMove) {
+                processingCastling(newLine, newColumn)
+            }
+
+            if (board.ceils[newLine][newColumn].isEnpassantMove) {
+                board.ceils[newLine][newColumn].isEnpassantMove = false;
+                if (clickedFigure.figureColor == Color.WHITE) {
+                    // берем черную пешку
+                    board.ceils[newLine + 1][newColumn].figure = null;
+                } else {
+                    board.ceils[newLine - 1][newColumn].figure = null;
+                }
+            } else {
+                // взятие на проходе упущено
+                resetEnPassant();
+            }
+
+            if (clickedFigure instanceof Pawn) {
+                if (Math.abs(newLine - oldLine) == 2) {
+                    checkEnPassant(newLine, newColumn);
+                }
+                if (newLine == 0) {
+                    board.isPromotionMode = true;
+                    drawPromotionFigures(Color.WHITE);
+                }
+                if (newLine == 7) {
+                    board.isPromotionMode = true;
+                    drawPromotionFigures(Color.BLACK);
+                }
+
+            }
+
+            clickedFigure = null;
+            updateGameWindow();
+        }
+    }
+}
+
+function processOnPromotionFigureClick(canvasX, canvasY) {
+    if ((canvasX > PROMOTION_FIGURES_POSITION_X) && (canvasX < PROMOTION_FIGURES_POSITION_X + CEIL_SIZE * 4)
+        && (canvasY > PROMOTION_TEXT_POSITION_Y) && (canvasY < PROMOTION_TEXT_POSITION_Y + CEIL_SIZE)) {
+        var number = Math.floor((canvasX - PROMOTION_FIGURES_POSITION_X) / CEIL_SIZE);
+        board.ceils[newLine][newColumn].figure = promotionFigures[number];
+        promotionFigures = [];
+        board.isPromotionMode = false;
+        clearPromotionFigures();
+        updateGameWindow();
+    }
+
 }
 
 function checkEnPassant(newLine, newColumn) {
@@ -611,14 +673,49 @@ function relMouseCoords(event, canvas) {
     return {x: canvasX, y: canvasY}
 }
 
-function draw() {
 
+
+function drawPromotionFigures(colorFigure) {
+    var x = PROMOTION_TEXT_POSITION_X;
+    var y = PROMOTION_TEXT_POSITION_Y;
+
+    ctx.font = "bold 16px Arial";
+    ctx.fillStyle = "#000";
+    ctx.fillText("Выберите фигуру, в которую превратится пешка", x, y);
+    ctx.font = "bold 48px Arial";
+    x = PROMOTION_FIGURES_POSITION_X;
+    y = PROMOTION_FIGURES_POSITION_Y;
+
+    promotionFigures[0] = new Rook(colorFigure);
+    promotionFigures[1] = new Knight(colorFigure);
+    promotionFigures[2] = new Bishop(colorFigure);
+    promotionFigures[3] = new King(colorFigure);
+
+    for (var i = 0; i < promotionFigures.length; i++) {
+        if (i % 2 == 0) {
+            ctx.fillStyle = COLOR_BLACK_CELL
+        } else {
+            ctx.fillStyle = COLOR_WHITE_CELL
+        }
+        ctx.fillRect(x, PROMOTION_TEXT_POSITION_Y + 10 , CEIL_SIZE, CEIL_SIZE);
+        if (colorFigure == Color.BLACK) {
+            ctx.fillStyle = "#000";
+        } else {
+            ctx.fillStyle = "#fff";
+        }
+        ctx.fillText(promotionFigures[i].symbol, x+5, y);
+        x += CEIL_SIZE;
+    }
 }
 
+function clearPromotionFigures() {
+    ctx.clearRect(0, FIELD_SIZE, FIELD_SIZE, canvas.height - FIELD_SIZE)
+}
 
 document.addEventListener("click", onClickListener);
 
 initFigures();
 initFiguresOnBoard();
 updateGameWindow();
+
 

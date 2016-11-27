@@ -3,6 +3,8 @@ const COLOR_BLACK_CELL = "#DB8700";
 const COLOR_WHITE_CELL = "#FCD89D";
 
 const FIELD_SIZE = 480;
+const FIELD_TOP_MARGIN = 30;
+const FIELD_LEFT_MARGIN = 30;
 const CEIL_SIZE = FIELD_SIZE / COUNT_CELL_IN_ROW;
 
 const BLACK_ROOK_SYMBOL = "\u265C";
@@ -25,13 +27,13 @@ const WHITE_PAWN_SYMBOL = "\u2659";
 
 const INFO_TEXT_POSITION_X = 50;
 const PROMOTION_FIGURES_POSITION_X = 130;
-const INFO_TEXT_POSITION_Y = FIELD_SIZE + 20;
-const PROMOTION_FIGURES_POSITION_Y = FIELD_SIZE + 80;
+const INFO_TEXT_POSITION_Y = FIELD_SIZE + FIELD_TOP_MARGIN * 2 + 20;
+const PROMOTION_FIGURES_POSITION_Y = FIELD_SIZE + FIELD_TOP_MARGIN * 2 + 80;
 
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
-canvas.width = FIELD_SIZE;
-canvas.height = FIELD_SIZE + 100;
+canvas.width = FIELD_SIZE + 60;
+canvas.height = FIELD_SIZE + 140;
 //document.body.appendChild(canvas);
 
 var step = 0;
@@ -57,6 +59,7 @@ var Ceil = function Cell(figure, color) {
 var Board = function () {
     this.ceils = [];
     this.isPromotionMode = false;
+    this.isChessMate = false;
     for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
         this.ceils[i] = [];
         for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
@@ -287,20 +290,20 @@ function initFigures() {
         var tempBoard = getCopyBoardWithFigures(board);
         makeStep(tempBoard, this, oldLineNumber, oldColumnNumber, newLineNumber, newColumnNumber);
 
-        console.log("пробуем походить " + getColorString(this.figureColor) + " королем на " + newLineNumber + " строку "
-            + newColumnNumber + " столбец");
+        /* console.log("пробуем походить " + getColorString(this.figureColor) + " королем на " + newLineNumber + " строку "
+         + newColumnNumber + " столбец");*/
         var otherColor;
         if (this.figureColor == Color.WHITE) {
             otherColor = Color.BLACK;
         } else {
             otherColor = Color.WHITE;
         }
-        console.log("Генерируем ходы противоположных фигур для проверки сохранит ли ход нашим королем шах");
+        //  console.log("Генерируем ходы противоположных фигур для проверки сохранит ли ход нашим королем шах");
         generateAllFiguresPossibleSteps(tempBoard, otherColor);
         var otherQueenIndex = findOppositeQueenIndex(board, this.figureColor);
         var isOtherQueenNear = Math.abs(newLineNumber - otherQueenIndex.line)
             + Math.abs(newColumnNumber - otherQueenIndex.column) == 1;
-        console.log("Привел ли наш ход к близости с другим королем? " + isOtherQueenNear);
+        // console.log("Привел ли наш ход к близости с другим королем? " + isOtherQueenNear);
         return tempBoard.ceils[newLineNumber][newColumnNumber].isPosibleStep && !isOtherQueenNear;
     };
 
@@ -315,16 +318,16 @@ function initFigures() {
                 if (curCeil.figure == null) {
                     curCeil.isPosibleStep = !this.isChessStep(board, oldLineNumber, oldColumnNumber, i, j);
                     if (curCeil.isPosibleStep) {
-                        console.log("Этот ход не привел к шаху");
+                        //   console.log("Этот ход не привел к шаху");
                     } else {
-                        console.log("Этот ход привел к шаху");
+                        //   console.log("Этот ход привел к шаху");
                     }
                 } else {
-                    curCeil.isPosibleStep =  this.isKillPossible(board, oldLineNumber, oldColumnNumber, i, j);
+                    curCeil.isPosibleStep = this.isKillPossible(board, oldLineNumber, oldColumnNumber, i, j);
                     if (curCeil.isPosibleStep) {
-                        console.log("Взятие фигуры позволило уйти от шаха");
+                        //   console.log("Взятие фигуры позволило уйти от шаха");
                     } else {
-                        console.log("Взятие фигуры НЕ позволило уйти от шаха");
+                        //  console.log("Взятие фигуры НЕ позволило уйти от шаха");
                     }
 
                 }
@@ -364,8 +367,8 @@ function initFigures() {
     Pawn.prototype.generatePossibleMoves = function (board, oldLineNumber, oldColumnNumber) {
         if (this.figureColor == Color.BLACK) {
             if (oldLineNumber == 1) {
-                board.ceils[oldLineNumber + 2][oldColumnNumber].isPosibleStep =
-                    board.ceils[oldLineNumber + 2][oldColumnNumber].figure == null;
+                board.ceils[3][oldColumnNumber].isPosibleStep =
+                    board.ceils[3][oldColumnNumber].figure == null;
             }
             if (oldLineNumber < COUNT_CELL_IN_ROW - 1) {
                 board.ceils[oldLineNumber + 1][oldColumnNumber].isPosibleStep =
@@ -383,8 +386,8 @@ function initFigures() {
             }
         } else {
             if (oldLineNumber == COUNT_CELL_IN_ROW - 2) {
-                board.ceils[COUNT_CELL_IN_ROW - 4][oldColumnNumber].isPosibleStep =
-                    board.ceils[oldLineNumber - 4][oldColumnNumber].figure == null;
+                board.ceils[4][oldColumnNumber].isPosibleStep =
+                    board.ceils[4][oldColumnNumber].figure == null;
             }
             if (oldLineNumber > 0) {
                 board.ceils[oldLineNumber - 1][oldColumnNumber].isPosibleStep =
@@ -407,7 +410,7 @@ function initFigures() {
 function getColorString(color) {
     if (color == Color.WHITE) {
         return "white";
-    }  else {
+    } else {
         return "black";
     }
 }
@@ -442,24 +445,44 @@ function updateGameWindow() {
     resetPossibleMoves(board);
     clearCircles(board);
     drawFiguresOnBoard();
+
     var curStepColor = getColorFigureMovesInThisStep();
-    step++;
+
+    console.log("step = " + step);
+    if (!board.isPromotionMode)
+        step++;
     if ((step > 1) && isChess(board, curStepColor)) {
         if (isChessMate(board, curStepColor)) {
             showCheckMateInfo("Шах и мат!");
+            board.isChessMate = true;
             return;
         } else {
             showCheckMateInfo("Шах!")
         }
-    } else {
-        clearBottomInfoContainer();
     }
-    if (!board.isPromotionMode) {
 
+    if (!board.isPromotionMode) {
+        clearBottomInfoContainer();
         drawStepInformation();
     }
+
+    drawCeilsSymbols();
 }
 
+function drawCeilsSymbols() {
+    ctx.font = "bold 16px Arial";
+    ctx.fillStyle = "#000";
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
+        var y = FIELD_TOP_MARGIN + i * CEIL_SIZE + CEIL_SIZE / 2 + 5;
+        var line = (COUNT_CELL_IN_ROW - i).toString();
+        ctx.fillText(line, 10, y);
+        ctx.fillText(line, FIELD_SIZE + FIELD_LEFT_MARGIN + 10, y);
+        var x = FIELD_LEFT_MARGIN + i * CEIL_SIZE + CEIL_SIZE / 2 - 5;
+        var column = convertColumnToChar(i);
+        ctx.fillText(column, x, 20);
+        ctx.fillText(column, x, FIELD_SIZE + FIELD_TOP_MARGIN + 20);
+    }
+}
 
 var Index = function (line, column) {
     this.line = line;
@@ -491,9 +514,66 @@ function isChess(board, curStepColor) {
 
 // перед проверкой на мат нужно вызвать проверку на шах
 function isChessMate(board, curStepColor) {
-    var oppositeQueenIndex = findOppositeQueenIndex(board, curStepColor);
-    return !mayQueenEscapeMateOwnStep(board, oppositeQueenIndex.line, oppositeQueenIndex.column,
-        board.ceils[oppositeQueenIndex.line][oppositeQueenIndex.column].figure);
+    console.log("проверяем поставили ли " + getColorString(curStepColor) + " фигуры мат");
+    var queenIndex = findOppositeQueenIndex(board, curStepColor);
+    return !mayQueenEscapeMateOwnStep(board, queenIndex.line, queenIndex.column,
+            board.ceils[queenIndex.line][queenIndex.column].figure)
+        && !mayEscapeFromMateByKillOtherFigure(board, getOtherColor(curStepColor))
+}
+
+function mayEscapeFromMateByKillOtherFigure(board, curStepColor) {
+    var newBoard = getCopyBoardWithFigures(board);
+    console.log("Проверяем можем ли мы уйти от мата взяв фигуру");
+    console.log("генерируем ходы для " + getColorString(curStepColor) + " фигур");
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++)
+        for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
+            var figure = board.ceils[i][j].figure;
+            if (figure != null && figure.figureColor == curStepColor && !(figure instanceof Queen)) {
+                console.log("Сгенерированы ходы для " + figure.symbol);
+                figure.generatePossibleMoves(newBoard, i, j);
+                if (makePossibleMovesEscapeMate(newBoard, figure, i, j)) {
+                    return true;
+                }
+                resetPossibleMoves(newBoard);
+            }
+        }
+    return false;
+}
+
+function getOtherColor(color) {
+    if (color == Color.WHITE) {
+        return Color.BLACK;
+    } else {
+        return Color.WHITE;
+    }
+}
+
+function makePossibleMovesEscapeMate(board, figure, oldLine, oldColumn) {
+    for (var i = 0; i < COUNT_CELL_IN_ROW; i++)
+        for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
+            if (board.ceils[i][j].isPosibleStep) {
+                if (mayMoveEscapeMate(board, figure, oldLine, oldColumn, i, j)) {
+                    console.log("Ход  " + getStepString(oldLine, oldColumn) + " -> " + getStepString(i, j)
+                        + " позволил уйти от шаха");
+                    return true;
+                }
+            }
+        }
+    return false;
+}
+
+function getStepString(line, column) {
+    return convertColumnToChar(column) + (COUNT_CELL_IN_ROW - line)
+}
+
+function convertColumnToChar(column) {
+    return String.fromCharCode('A'.charCodeAt(0) + column)
+}
+
+function mayMoveEscapeMate(board, figure, oldLine, oldColumn, newLine, newColumn) {
+    console.log("Совершаем ход " + getStepString(oldLine, oldColumn) + " -> " + getStepString(newLine, newColumn));
+    makeStep(board, figure, oldLine, oldColumn, newLine, newColumn);
+    return !isChess(board, getOtherColor(figure.figureColor))
 }
 
 function showCheckMateInfo(text) {
@@ -508,15 +588,15 @@ function generateAllFiguresPossibleSteps(board, figureColor) {
         for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
             var figure = board.ceils[i][j].figure;
             if (figure != null && figure.figureColor == figureColor && !(figure instanceof Queen)) {
-                figure.generatePossibleMoves(board, i, j)
+                figure.generatePossibleMoves(board, i, j);
             }
         }
 }
 
 // проверяем может ли король уйти от мата своим ходом
-function mayQueenEscapeMateOwnStep(board, oppositeQueenLine, oppositeQueenColumn, queen) {
+function mayQueenEscapeMateOwnStep(board, queenLine, queenColumn, queen) {
     var newBoard = getCopyBoardWithFigures(board);
-    queen.generatePossibleMoves(newBoard, oppositeQueenLine, oppositeQueenColumn);
+    queen.generatePossibleMoves(newBoard, queenLine, queenColumn);
     var mayQueenEscapeMateOwnStep = false;
     for (var i = 0; i < COUNT_CELL_IN_ROW; i++)
         for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
@@ -551,8 +631,8 @@ function drawFiguresOnBoard() {
             } else {
                 ctx.fillStyle = COLOR_WHITE_CELL
             }
-            var x = j * CEIL_SIZE;
-            var y = i * CEIL_SIZE;
+            var x = j * CEIL_SIZE + FIELD_LEFT_MARGIN;
+            var y = i * CEIL_SIZE + FIELD_TOP_MARGIN;
             ctx.fillRect(x, y, CEIL_SIZE, CEIL_SIZE);
             var curFigure = board.ceils[i][j].figure;
             if (curFigure != null) {
@@ -565,11 +645,14 @@ function drawFiguresOnBoard() {
             }
         }
 
-        ctx.rect(0, 0, FIELD_SIZE, FIELD_SIZE);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "black";
-        ctx.stroke();
+
     }
+
+    ctx.rect(FIELD_LEFT_MARGIN, FIELD_TOP_MARGIN, FIELD_SIZE, FIELD_SIZE);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "black";
+    ctx.stroke();
+
 }
 
 function getColorFigureMovesInThisStep() {
@@ -582,11 +665,11 @@ function drawStepInformation() {
 }
 
 function findLineByCoordY(y) {
-    return Math.floor(y / CEIL_SIZE);
+    return Math.floor((y - FIELD_TOP_MARGIN) / CEIL_SIZE);
 }
 
 function findColumnByCoordX(x) {
-    return Math.floor(x / CEIL_SIZE);
+    return Math.floor((x - FIELD_LEFT_MARGIN) / CEIL_SIZE);
 }
 
 var clickedFigure = null;
@@ -596,11 +679,15 @@ var newLine;
 var newColumn;
 
 function onClickListener(event) {
+    if (board.isChessMate) {
+        return;
+    }
     var coords = relMouseCoords(event, canvas);
     var canvasX = coords.x;
     var canvasY = coords.y;
-    if ((canvasX > 0) && (canvasX < FIELD_SIZE) && (canvasY > 0)) {
-        if (canvasY < FIELD_SIZE && !board.isPromotionMode) {
+    if ((canvasX > FIELD_LEFT_MARGIN) && (canvasX < FIELD_SIZE + FIELD_LEFT_MARGIN)
+        && (canvasY > FIELD_TOP_MARGIN)) {
+        if (canvasY < FIELD_SIZE + FIELD_TOP_MARGIN && !board.isPromotionMode) {
             processOnBoardClick(canvasX, canvasY);
         }
         if (board.isPromotionMode) {
@@ -629,8 +716,8 @@ function processOnBoardClick(canvasX, canvasY) {
         newColumn = findColumnByCoordX(canvasX);
         if (board.ceils[newLine][newColumn].isPosibleStep) {
             makeStep(board, clickedFigure, oldLine, oldColumn, newLine, newColumn);
-           /* board.ceils[oldLine][oldColumn].figure = null;
-            board.ceils[newLine][newColumn].figure = clickedFigure;*/
+            /* board.ceils[oldLine][oldColumn].figure = null;
+             board.ceils[newLine][newColumn].figure = clickedFigure;*/
             clickedFigure.hasBeenMoved = true;
 
             if (board.ceils[newLine][newColumn].isCastlingMove) {
@@ -664,6 +751,9 @@ function processOnBoardClick(canvasX, canvasY) {
                 }
 
             }
+
+            console.log("Шаг " + getStepString(oldLine, oldColumn) + " -> "
+                + getStepString(newLine, newColumn));
 
             clickedFigure = null;
             updateGameWindow();
@@ -751,8 +841,8 @@ function drawPossibleSteps(board) {
     for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
         for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
             if (board.ceils[i][j].isPosibleStep) {
-                var circleX = j * CEIL_SIZE + CEIL_SIZE / 2;
-                var circleY = i * CEIL_SIZE + CEIL_SIZE / 2;
+                var circleX = FIELD_LEFT_MARGIN + j * CEIL_SIZE + CEIL_SIZE / 2;
+                var circleY = FIELD_TOP_MARGIN + i * CEIL_SIZE + CEIL_SIZE / 2;
                 drawCircle(circleX, circleY);
 
             }
@@ -832,7 +922,7 @@ function drawPromotionFigures(colorFigure) {
 }
 
 function clearBottomInfoContainer() {
-    ctx.clearRect(0, FIELD_SIZE, FIELD_SIZE, canvas.height - FIELD_SIZE)
+    ctx.clearRect(FIELD_LEFT_MARGIN, FIELD_SIZE + FIELD_TOP_MARGIN, FIELD_SIZE, canvas.height - FIELD_SIZE)
 }
 
 document.addEventListener("click", onClickListener);

@@ -1,19 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
+    <meta charset="utf-8"/>
     <title>Gamedev Canvas Workshop</title>
     <link rel="stylesheet" type="text/css" href="./style.css">
 </head>
 <body>
-<div id="step_info">
+<div id="gameWindow">
+    <div id="step_info"></div>
 
+    <div class="colon set_name_container">
+        <form name="userNames" onsubmit="onStartGameEvent()">
+            Имя игрока играющего белыми фигурами: <input class="editText" type="text" id="whiteFiguresPlayerName"><br>
+            Имя игрока играющего черными фигурами: <input class="editText" type="text" id="blackFiguresPlayerName"><br>
+        </form>
+        <input class="button" id="setUserNamesBtn" type="submit"
+               value="Начать игру"
+               onclick="onStartGameEvent()"
+        />
+    </div>
+    <canvas id="canvas">
+    </canvas>
+
+    <div class="colon">
+        <form action="">
+            <input class="button invisible" id="newGameBtn" type="button"
+                   value="Начать новую игру" onclick="onNewGameEvent()"
+            />
+            <input class="button invisible" id="offerDrawBtn" type="button"
+                   value="Предложить ничью" onclick="onOfferDrawEvent()"
+            />
+            <input class="button invisible" id="agreeDrawBtn" type="button"
+                   value="Согласиться на ничью" onclick="onAgreeDrawEvent()"
+            />
+            <input class="button invisible" id="refuseDrawBtn" type="button"
+                   value="Играть дальше" onclick="onRefusedDrawEvent()"
+            />
+            <input class="button invisible" id="admit_defeat" type="button"
+                   value="Признать поражение" onclick="onAdmitDefeatEvent()"
+            />
+        </form>
+    </div>
 </div>
-<canvas id="canvas">
-</canvas>
-<div id="chess_info_container">
-    Шах!
+<div class="block"></div>
+<div id="results">
+    <table id="resultTable" border="1">
+        <caption>Таблица результатов</caption>
+    </table>
 </div>
-<script src="chess_game.js" ></script>
+<script src="chess_game.js"></script>
 </body>
 </html>

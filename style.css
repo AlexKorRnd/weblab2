@@ -3,22 +3,66 @@
     margin: 0;
 }
 
-#canvas {
-    background: #eee;
+#gameWindow {
     display: block;
-    margin: 0 auto;
+}
+
+#canvas {
+    background: #fff;
+    float:left;
+}
+
+.colon
+{
+    display: inline-block;
+    float:left;
+    width: 400px;
+    margin-top: 25px;
+}
+
+.block
+{
+    display: block;
+    float:left;
+    width: 435px;
 }
 
 #step_info {
     display: block;
-    margin: 25px 0 25px 0;
+    margin: 10px 0 10px 0;
     text-align: center;
 }
 
-#chess_info_container
-{
-    display: block;
-    margin: 25px 0 25px 0;
+.set_name_container {
     text-align: center;
-    color: red;
+    margin-top: 200px;
+}
+
+.editText {
+    margin: 8px 0;
+}
+
+.button
+{
+    margin: 10px 100px;
+}
+
+#results {
+    display: block;
+    width: 300px;
+    margin: 25px auto;
+    text-align: center;
+}
+
+#resultTable {
+    margin: 25px auto;
+}
+
+td {
+    padding: 5px 15px;
+    box-sizing: border-box;
+}
+
+.invisible {
+    display: none;
 }

@@ -30,11 +30,15 @@ const PROMOTION_FIGURES_POSITION_X = 130;
 const INFO_TEXT_POSITION_Y = FIELD_SIZE + FIELD_TOP_MARGIN * 2 + 20;
 const PROMOTION_FIGURES_POSITION_Y = FIELD_SIZE + FIELD_TOP_MARGIN * 2 + 80;
 
+const COOKIE_WHITE_FIGURE_PLAYER_NAME = ".whiteFigurePlayerName";
+const COOKIE_BLACK_FIGURE_PLAYER_NAME = ".blackFigurePlayerName";
+const COOKIE_RESULT_TABLE = ".resultTable";
+const DEFAULT_COOKIE_EXPIRES_DAYS = 10;
+
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 canvas.width = FIELD_SIZE + 60;
 canvas.height = FIELD_SIZE + 140;
-//document.body.appendChild(canvas);
 
 var step = 0;
 
@@ -43,8 +47,17 @@ var Color = {
     BLACK: 1
 };
 
+var GameStatus = {
+    PREPARING: 0,
+    STARTED: 1,
+    OFFERING_DRAW: 2,
+    FINISHED: 3
+};
+
 var colorWhite = Color.WHITE;
 var colorBlack = Color.BLACK;
+
+var curGameStatus = GameStatus.PREPARING;
 
 var promotionFigures = [];
 
@@ -59,7 +72,6 @@ var Ceil = function Cell(figure, color) {
 var Board = function () {
     this.ceils = [];
     this.isPromotionMode = false;
-    this.isChessMate = false;
     for (var i = 0; i < COUNT_CELL_IN_ROW; i++) {
         this.ceils[i] = [];
         for (var j = 0; j < COUNT_CELL_IN_ROW; j++) {
@@ -81,6 +93,16 @@ var Bishop;
 var King;
 var Queen;
 var Pawn;
+
+var User = function (name) {
+    this.name = name;
+    this.points = 0;
+};
+
+var ResultsTable = function () {
+    this.users = [];
+};
+
 
 function initFigures() {
     var AbstractFigure = function (symbol, figureColor) {
@@ -449,22 +471,27 @@ function updateGameWindow() {
     var curStepColor = getColorFigureMovesInThisStep();
 
     console.log("step = " + step);
-    if (!board.isPromotionMode)
+    if (!board.isPromotionMode && curGameStatus == GameStatus.STARTED)
         step++;
+
+    if (!board.isPromotionMode) {
+        clearBottomInfoContainer();
+        drawStepInformation();
+    }
+
     if ((step > 1) && isChess(board, curStepColor)) {
         if (isChessMate(board, curStepColor)) {
             showCheckMateInfo("Шах и мат!");
-            board.isChessMate = true;
+            var winner = new User(getPlayerNameByFigureColor(getColorFigureMovesInThisStep()));
+            var loser = new User(getPlayerNameByFigureColor(getOtherColor(getColorFigureMovesInThisStep())));
+            winner.points += 1;
+            onFinishGameEvent(winner, loser);
             return;
         } else {
             showCheckMateInfo("Шах!")
         }
     }
 
-    if (!board.isPromotionMode) {
-        clearBottomInfoContainer();
-        drawStepInformation();
-    }
 
     drawCeilsSymbols();
 }
@@ -661,6 +688,9 @@ function getColorFigureMovesInThisStep() {
 
 function drawStepInformation() {
     var text = getColorFigureMovesInThisStep() == Color.WHITE ? "Ходят белые" : "Ходят черные";
+    if (curGameStatus != GameStatus.STARTED) {
+        text = "";
+    }
     document.getElementById('step_info').textContent = text;
 }
 
@@ -679,14 +709,17 @@ var newLine;
 var newColumn;
 
 function onClickListener(event) {
-    if (board.isChessMate) {
-        return;
-    }
     var coords = relMouseCoords(event, canvas);
     var canvasX = coords.x;
     var canvasY = coords.y;
     if ((canvasX > FIELD_LEFT_MARGIN) && (canvasX < FIELD_SIZE + FIELD_LEFT_MARGIN)
         && (canvasY > FIELD_TOP_MARGIN)) {
+        if (curGameStatus == GameStatus.OFFERING_DRAW) {
+            alert("Вам предложена ничья. Согласитесь или откажитесь на этот результат")
+        }
+        if (curGameStatus != GameStatus.STARTED) {
+            return;
+        }
         if (canvasY < FIELD_SIZE + FIELD_TOP_MARGIN && !board.isPromotionMode) {
             processOnBoardClick(canvasX, canvasY);
         }
@@ -697,6 +730,7 @@ function onClickListener(event) {
 }
 
 function processOnBoardClick(canvasX, canvasY) {
+    console.log("processOnBoardClick");
     if (clickedFigure == null) {
         oldLine = findLineByCoordY(canvasY);
         oldColumn = findColumnByCoordX(canvasX);
@@ -716,8 +750,6 @@ function processOnBoardClick(canvasX, canvasY) {
         newColumn = findColumnByCoordX(canvasX);
         if (board.ceils[newLine][newColumn].isPosibleStep) {
             makeStep(board, clickedFigure, oldLine, oldColumn, newLine, newColumn);
-            /* board.ceils[oldLine][oldColumn].figure = null;
-             board.ceils[newLine][newColumn].figure = clickedFigure;*/
             clickedFigure.hasBeenMoved = true;
 
             if (board.ceils[newLine][newColumn].isCastlingMove) {
@@ -921,14 +953,174 @@ function drawPromotionFigures(colorFigure) {
     }
 }
 
+function onStartGameEvent() {
+    var whiteFiguresPlayerName = document.getElementById("whiteFiguresPlayerName").value;
+    var blackFiguresPlayerName = document.getElementById("blackFiguresPlayerName").value;
+    document.getElementById('offerDrawBtn').style.display = 'block';
+    document.getElementById('admit_defeat').style.display = 'block';
+    document.getElementById('newGameBtn').style.display = 'block';
+    curGameStatus = GameStatus.STARTED;
+    createCookie(COOKIE_WHITE_FIGURE_PLAYER_NAME, whiteFiguresPlayerName, DEFAULT_COOKIE_EXPIRES_DAYS);
+    createCookie(COOKIE_BLACK_FIGURE_PLAYER_NAME, blackFiguresPlayerName, DEFAULT_COOKIE_EXPIRES_DAYS);
+    document.getElementById('setUserNamesBtn').style.display = 'none';
+    updateGameWindow();
+}
+
 function clearBottomInfoContainer() {
     ctx.clearRect(FIELD_LEFT_MARGIN, FIELD_SIZE + FIELD_TOP_MARGIN, FIELD_SIZE, canvas.height - FIELD_SIZE)
 }
 
 document.addEventListener("click", onClickListener);
 
-initFigures();
-initFiguresOnBoard();
-updateGameWindow();
+function onAdmitDefeatEvent() {
+    console.log("onAdmitDefeatEvent");
+    var loser = new User(getPlayerNameByFigureColor(getColorFigureMovesInThisStep()));
+    var winner = new User(getPlayerNameByFigureColor(getOtherColor(getColorFigureMovesInThisStep())));
+    winner.points += 1;
+    onFinishGameEvent(winner, loser)
+}
 
+function onNewGameEvent() {
+    document.getElementById('setUserNamesBtn').style.display = 'block';
+    document.getElementById('newGameBtn').style.display = 'none';
+    curGameStatus = GameStatus.PREPARING;
+    board = new Board();
+    document.getElementById("whiteFiguresPlayerName").value = "";
+    document.getElementById("blackFiguresPlayerName").value = "";
+    initGame();
+}
+
+function onOfferDrawEvent() {
+    curGameStatus = GameStatus.OFFERING_DRAW;
+    document.getElementById('offerDrawBtn').style.display = 'none';
+    document.getElementById('agreeDrawBtn').style.display = 'block';
+    document.getElementById('refuseDrawBtn').style.display = 'block';
+}
+
+function onRefusedDrawEvent() {
+    curGameStatus = GameStatus.STARTED;
+    document.getElementById('offerDrawBtn').style.display = 'block';
+    document.getElementById('agreeDrawBtn').style.display = 'none';
+    document.getElementById('refuseDrawBtn').style.display = 'none';
+}
+
+function onAgreeDrawEvent() {
+    var user1 = new User(getPlayerNameByFigureColor(getColorFigureMovesInThisStep()));
+    var user2 = new User(getPlayerNameByFigureColor(getOtherColor(getColorFigureMovesInThisStep())));
+    user1.points += 0.5;
+    user2.points += 0.5;
+    onFinishGameEvent(user1, user2)
+}
+
+function onFinishGameEvent(user1, user2) {
+    curGameStatus = GameStatus.FINISHED;
+    //updateGameWindow();
+    var resultsTable = getResultsTableFromCookie();
+    saveResultToCookie(resultsTable, user1, user2);
+    showResultsTable(resultsTable);
+}
+
+
+function getPlayerNameByFigureColor(color) {
+    switch (color) {
+        case Color.WHITE :
+            return readCookie(COOKIE_WHITE_FIGURE_PLAYER_NAME);
+        case Color.BLACK :
+            return readCookie(COOKIE_BLACK_FIGURE_PLAYER_NAME);
+        default:
+            return null;
+    }
+}
+
+
+function showResultsTable(resultsTable) {
+    resultsTable.users.sort(function(user1, user2) {
+        return parseFloat(user2.points) - parseFloat(user1.points);
+    });
+    resultsTable.users.forEach(function (item, i, arr) {
+        console.log("userName = " + item.name + " points = " + item.points);
+    });
+    //document.getElementById('gameWindow').style.display = 'none';
+    document.getElementById('results').style.display = 'block';
+    fillTable(resultsTable);
+}
+
+function fillTable(resultsTable) {
+    var table = document.getElementById('resultTable');
+
+    for (var i = 0; i < resultsTable.users.length; i++) {
+        var row = table.insertRow(i);
+        row.insertCell(0).innerHTML = (i+1) + ".";
+        row.insertCell(1).innerHTML = resultsTable.users[i].name;
+        row.insertCell(2).innerHTML = resultsTable.users[i].points;
+    }
+}
+
+function findUserByName(array, name) {
+    for (var i = 0; i < array.length; i++) {
+        if (array[i].name === name) {
+            return array[i];
+        }
+    }
+    return null;
+};
+
+function saveResultToCookie(resultsTable, _user1, _user2) {
+    var user1 = findUserByName(resultsTable.users, _user1.name);
+    if (user1 == null) {
+        user1 = _user1;
+        resultsTable.users.push(user1);
+    } else {
+        user1.points += _user1.points;
+    }
+    var user2 = findUserByName(resultsTable.users, _user2.name);
+    if (user2 == null) {
+        user2 = _user2;
+        resultsTable.users.push(user2);
+    } else {
+        user2.points += _user2.points;
+    }
+    createCookie(COOKIE_RESULT_TABLE, JSON.stringify(resultsTable))
+};
+
+
+function getResultsTableFromCookie() {
+    var resultsTableJson = readCookie(COOKIE_RESULT_TABLE);
+    if (resultsTableJson == null) {
+        return new ResultsTable();
+    }
+    return JSON.parse(resultsTableJson);
+}
+
+function createCookie(name, value, days) {
+    console.log("createCookie: name = " + name + "  value = " + value);
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        var expires = "; expires=" + date.toGMTString();
+    }
+    else var expires = "";
+    document.cookie = name + "=" + value + expires + "; path=/";
+}
+
+function readCookie(name) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for (var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+}
+
+
+function initGame() {
+    step = 0;
+    initFigures();
+    initFiguresOnBoard();
+    updateGameWindow();
+}
+
+initGame();
 
